@@ -1,0 +1,103 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io-stream/0.9.1/socket.io-stream.min.js" integrity="sha512-LTN7WQKvmCiOWbwxE4XRu3NCRqLzkFo28vBDHVhAyKjhmorNGjtvFxQgbvAttO31Ij6An4AIXU4GVaYOC0eNpQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://www.WebRTC-Experiment.com/RecordRTC.js"></script>
+</head>
+
+<body>
+  <button id="start-recording">start-recording</button>
+  <button id="stop-recording">Stop</button>
+  <script>
+    //1)   
+    var recording=true;
+    const stopRecording = document.getElementById('stop-recording');
+    const startRecording = document.getElementById('start-recording');
+    stopRecording.onclick=(e)=>{
+      recording=false
+      startRecording.disabled = false;
+      stopRecording.disabled = true;
+
+    };
+    startRecording.onclick=(e)=>{
+      recording=true
+      startRecording.disabled = true;
+      stopRecording.disabled = false;
+    }
+
+    let recordAudio;
+
+    //2)
+    const socketio = io();
+    const socket = socketio.on('connect', function () {
+      startRecording.disabled = false;
+    });
+    audio=new Audio()
+    socketio.on("audio",(msg)=>{
+      var b=new Blob([msg.data])
+      var url=window.URL.createObjectURL(b)
+      audio.src=url
+      audio.load()
+      audio.play()
+
+    })
+
+    //3)
+    startRecording.onclick = function () {
+
+      +
+      //4)
+      navigator.getUserMedia({
+        audio: true
+      }, function (stream) {
+
+        //5)
+        recordAudio = RecordRTC(stream, {
+          type: 'audio',
+
+          //6)
+          mimeType: 'audio/webm',
+          sampleRate: 44100,
+          // used by StereoAudioRecorder
+          // the range 22050 to 96000.
+          // let us force 16khz recording:
+          desiredSampRate: 16000,
+
+          // MediaStreamRecorder, StereoAudioRecorder, WebAssemblyRecorder
+          // CanvasRecorder, GifRecorder, WhammyRecorder
+          recorderType: StereoAudioRecorder,
+          // Dialogflow / STT requires mono audio
+          numberOfAudioChannels: 1,
+
+          // 1)
+          timeSlice: 1000,
+
+          // 2)
+          // as soon as the stream is available
+          ondataavailable: function (blob) {
+
+            // 3
+            // making use of socket.io-stream for bi-directional
+            // streaming, create a stream
+            if (recording){
+
+              socket.emit("audio",{"aud":blob})}
+          }
+        });
+
+        recordAudio.startRecording();
+        stopRecording.disabled = false;
+      }, function (error) {
+        console.error(JSON.stringify(error));
+      });
+    };
+
+  </script>
+</body>
+
+</html>
