@@ -1,0 +1,212 @@
+{% extends 'base.html' %} {% block content %}
+<style>
+  
+  body {
+    display: flex;
+    margin: 0;
+    background-color: deeppink;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  audio::-webkit-media-controls-mute-button,
+  audio::-webkit-media-controls-play-button,
+  audio::-webkit-media-controls-timeline-container,
+  audio::-webkit-media-controls-current-time-display,
+  audio::-webkit-media-controls-time-remaining-display,
+  audio::-webkit-media-controls-timeline,
+  audio::-webkit-media-controls-volume-slider-container,
+  audio::-webkit-media-controls-volume-slider,
+  audio::-webkit-media-controls-seek-back-button,
+  audio::-webkit-media-controls-seek-forward-button,
+  audio::-webkit-media-controls-fullscreen-button,
+  audio::-webkit-media-controls-rewind-button,
+  audio::-webkit-media-controls-return-to-realtime-button,
+  audio::-webkit-media-controls-toggle-closed-captions-button {
+
+    font-family: sponge;
+    color: deeppink;
+
+
+  }
+
+
+
+  .controls {
+    display: flexbox;
+    font-family: sponge;
+    font-size: 490%;
+    animation-play-state: running;
+    animation: spin 7 linear infinite;
+    color: deeppink;
+    width: 400;
+    height: 400;
+    background-color: rebeccapurple;
+    border-radius: 50%;
+    border: 4px solid rebeccapurple;
+    margin: 7% auto;
+  }
+
+  .controls:focus,
+  .controls:hover {
+    color: rebeccapurple;
+    background-color: deeppink;
+  }
+
+  .audio {
+    outline: none;
+    width: 100%;
+    border: rebeccapurple 4px solid;
+    color: rebeccapurple;
+    border-radius: 0%;
+    margin: 0;
+  }
+
+  .extra {
+    display: flexbox;
+    background-color: rebeccapurple;
+    width: 100%;
+    margin: 0;
+  }
+
+  audio::-webkit-media-controls-panel {
+    background-color: rebeccapurple;
+    border-radius: 0%;
+    opacity: 1;
+  }
+
+  .extra_flex {
+    color: deeppink;
+    font-size: 300%;
+    font-family: sponge;
+    display: flex;
+    flex-direction: row;
+  }
+
+  .info {
+    width: 50%;
+    display: flexbox;
+  }
+
+  .time {
+    align-self: center;
+    text-align: center;
+    width: 50%;
+  }
+</style>
+<button class="controls">RECORD</button>
+
+
+</div>
+
+<div class="extra">
+  <audio src="" class="audio" controls></audio>
+  <div class="extra_flex">
+    <div class="info">
+      <div class="name">NAME</div>
+      <div class="date">DATE</div>
+    </div>
+    <div class="info">
+      <div class="time">Time</div>
+      <form class="form"action="record" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input id="topic" type="hidden" name="topic">
+        <input type="submit" value="Save">
+        
+      </form>
+      
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then(function (stream) {
+        const mediarecorder = new MediaRecorder(stream);
+
+        var id = null;
+        var control_element = document.querySelector(".controls");
+
+        console.log(control_element.innerHTML);
+        var date_element = document.querySelector(".date");
+        var name_element = document.querySelector(".name");
+        var time_element = document.querySelector(".time");
+        var recording = false;
+        var chunks = [];
+        console.log(recording);
+
+        control_element.onclick = function () {
+          if (recording == true) {
+            var audio = document.querySelector(".audio");
+            audio.src = "";
+            mediarecorder.stop();
+            var unit_name = prompt("What is the recording for?", "UNIT");
+            document.getElementById("topic").value=unit_name
+            console.log(unit_name);
+            name_element.innerHTML = unit_name;
+
+            date_element.innerHTML = new Date().toDateString();
+
+            mediarecorder.onstop = function () {
+              console.log(mediarecorder.state);
+              const blob = new Blob(chunks, { type: "audio/mpeg-3; codecs=opus" });
+              const audio_url = window.URL.createObjectURL(blob);
+              console.log(blob);
+              var xhttp = new XMLHttpRequest();
+              xhttp.open("POST", "http://localhost:8000/er/", true);
+              var data = new FormData();
+              data.append('data', blob, 'audio_blob');
+              xhttp.send(data);
+              xhttp.onreadystatechange = function() {
+                  if (this.readyState == 4 && this.status == 200) {
+                      console.log(this.responseText);     
+                   }
+              };
+
+              audio.src = audio_url;
+              document.querySelector(".file").src=audio_url
+            };
+
+            chunks = [];
+            recording = false;
+            window.clearInterval(id);
+            control_element.style.transform = "rotate(" + 0 + "deg)";
+            control_element.innerHTML = "RECORD";
+          } else {
+            recording = true;
+            mediarecorder.start();
+            console.log(mediarecorder.state);
+            var i = 0;
+            id = window.setInterval(frame, 1);
+            control_element.innerHTML = "STOP";
+            function frame() {
+              i = i + 1;
+              if (i < 60000) {
+                time_element.innerHTML = parseInt(i / 1000) + "s";
+              } else {
+                time_element.innerHTML = parseInt(i / 60000) + "m";
+              }
+              control_element.style.transform = "rotate(" + i + "deg)";
+            }
+
+            mediarecorder.ondataavailable = function (e) {
+              chunks.push(e.data);
+            };
+          }
+        };
+      })
+      .catch(function (err) {
+        console.log(err);
+      });
+  } else {
+    console.log("not supported");
+  }
+</script>
+{% endblock content %}
